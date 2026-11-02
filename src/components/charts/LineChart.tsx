@@ -223,6 +223,7 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
           left={MARGIN.left + activeX}
           containerWidth={width}
           title={formatFull(new Date(activeTime))}
+          subtitle={yLabel}
           rows={readings.map(({ series: s, point }) => ({
             id: s.id,
             label: s.label,
@@ -261,10 +262,11 @@ type TooltipProps = {
   left: number;
   containerWidth: number;
   title: string;
+  subtitle: string;
   rows: { id: string; label: string; color: string; value: string }[];
 };
 
-function Tooltip({ left, containerWidth, title, rows }: TooltipProps) {
+function Tooltip({ left, containerWidth, title, subtitle, rows }: TooltipProps) {
   const flip = left > containerWidth / 2;
   return (
     <div
@@ -273,6 +275,7 @@ function Tooltip({ left, containerWidth, title, rows }: TooltipProps) {
       style={flip ? { right: containerWidth - left + 12 } : { left: left + 12 }}
     >
       <p className="text-xs text-muted">{title}</p>
+      <p className="mt-0.5 text-xs font-medium">{subtitle}</p>
       <ul className="mt-1 space-y-0.5">
         {rows.map((row) => (
           <li key={row.id} className="flex items-center justify-between gap-4">

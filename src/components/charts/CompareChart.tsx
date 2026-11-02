@@ -70,6 +70,15 @@ export function CompareChart({
           others to join the comparison.
         </Alert>
       )}
+      <div className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-muted">
+        <p className="font-medium text-foreground">How to read this graph</p>
+        <p className="mt-1">
+          Each line shows how a person&apos;s weight has changed, in percent, since their own first
+          logged day. <strong className="font-medium text-foreground">0%</strong> is where they started.
+          Below 0% means their weight went down; above 0% means it went up. The number next to each
+          name is their latest change. Only relative change is shown, never actual weights.
+        </p>
+      </div>
       <ul
         className="flex flex-wrap gap-2"
         aria-label="Chart legend. Toggle a line to show or hide it."

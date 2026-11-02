@@ -63,9 +63,23 @@ export function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted">
-        Score: 70% weight change toward your goal, 30% logging consistency over the last 30 days.
-      </p>
+      <dl className="space-y-1 text-xs text-muted">
+        <div>
+          <dt className="inline font-medium text-foreground">Progress: </dt>
+          <dd className="inline">
+            how far weight has moved toward each person&apos;s goal (lose or gain) since their first
+            entry. A 10% change counts as 100%.
+          </dd>
+        </div>
+        <div>
+          <dt className="inline font-medium text-foreground">Consistency: </dt>
+          <dd className="inline">the share of the last 30 days with a logged weight.</dd>
+        </div>
+        <div>
+          <dt className="inline font-medium text-foreground">Score: </dt>
+          <dd className="inline">70% progress + 30% consistency, out of 100.</dd>
+        </div>
+      </dl>
     </div>
   );
 }
