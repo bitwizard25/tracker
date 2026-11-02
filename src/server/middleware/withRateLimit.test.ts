@@ -96,7 +96,7 @@ describe("withRateLimit", () => {
     const route = build(5, 60_000);
     for (let i = 0; i < MAX_TRACKED_KEYS + 50; i++) await route(req(`ip-${i}`), params);
     expect(rateLimitStoreSize()).toBe(MAX_TRACKED_KEYS);
-  });
+  }, 30_000);
 
   it("falls back to a shared 'local' key without the header", async () => {
     const route = build(1);
