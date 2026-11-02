@@ -79,14 +79,14 @@ function compose(...mws: Middleware[]): (handler: Handler) => (req: NextRequest,
 
 ## Task 1: Database foundation, errors, test infrastructure
 
-**Files:** `drizzle.config.ts`, `src/server/db/{schema.ts,client.ts}`, `src/server/db/migrations/*` (generated), `src/server/errors.ts`, `src/test/createTestDb.ts`, `vitest.config.ts`, `.env.example`, `package.json` scripts, `data/.gitkeep`, `.gitignore` (ignore `data/*.db`).
+**Files:** `drizzle.config.ts`, `src/server/db/{schema.ts,client.ts}`, `src/server/db/migrations/*` (generated), `src/server/errors.ts`, `src/test/createTestDb.ts`, `vitest.config.mts`, `.env.example`, `package.json` scripts, `data/.gitkeep`, `.gitignore` (ignore `data/*.db`).
 
 - Drizzle schema, SQLite. `users(id integer pk autoincrement, email text unique not null (stored lowercased), password_hash text not null, display_name text not null, goal_type text not null check in ('lose','gain'), goal_weight_kg real null, share_progress integer not null default 0, share_consented_at text null (ISO), created_at text not null default current_timestamp)`. `weight_entries(id integer pk autoincrement, user_id integer not null references users(id) on delete cascade, entry_date text not null, weight_kg real not null, created_at text not null default current_timestamp)` with `unique(user_id, entry_date)` and an index on `(user_id, entry_date)`.
 - `client.ts` per the shared interface: `createDb(filename)` enables `PRAGMA journal_mode=WAL` (skip for `:memory:`) and `foreign_keys=ON`; `getDb()` lazy singleton; creates parent directory for file paths.
 - Generate the migration with drizzle-kit (`npm run db:generate`) and commit it. `npm run db:migrate` applies migrations to `DATABASE_URL` via a small `scripts/migrate.ts` run with `tsx`.
 - `errors.ts` per the shared interface.
 - `createTestDb()` applies the generated migrations with drizzle's `migrate` on `:memory:`.
-- `vitest.config.ts`: node environment, `@/` alias matching tsconfig, include `src/**/*.test.ts(x)`.
+- `vitest.config.mts`: node environment, `@/` alias matching tsconfig, include `src/**/*.test.ts(x)`.
 - package.json scripts: `test` = `vitest run`, `typecheck` = `tsc --noEmit`, `db:generate`, `db:migrate`, `db:seed` (= `tsx scripts/seed.ts`, script created in Task 10).
 - `.env.example`: `SESSION_SECRET=change-me-to-a-long-random-string-at-least-32-chars` and `DATABASE_URL=./data/tracker.db`.
 - Tests (`src/server/db/schema.test.ts`): inserting two entries for same user+date throws; deleting a user cascades its entries; `share_progress` defaults to 0; `goal_type` check rejects `'maintain'`.
