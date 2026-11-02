@@ -26,8 +26,12 @@ export function useCurrentUser(): CurrentUser {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    api.auth
+      .me()
+      .then(({ user: me }) => setUser(me))
+      .catch(() => setUser(null))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   return { user, isLoading, refresh };
 }

@@ -41,7 +41,9 @@ async function toApiError(res: Response): Promise<ApiError> {
 
 function redirectToLogin(path: string): void {
   if (typeof window === "undefined" || PUBLIC_AUTH_PATHS.includes(path)) return;
-  window.location.assign("/login");
+  // hard navigation on purpose: drops all client state when the session is gone
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.href = "/login";
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<RawResult<T>> {
