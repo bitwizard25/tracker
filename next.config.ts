@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Migration SQL files are read from disk at runtime (Vercel demo mode), so bundle them into every route.
+  outputFileTracingIncludes: {
+    "/*": ["./src/server/db/migrations/**/*"],
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -112,3 +112,15 @@ consistency = distinct days logged in the last 30 days (incl. today) / 30 * 100
 | `PATCH` / `DELETE /api/weights/[id]` | yes, owner | Other users' ids return 404 |
 | `GET /api/leaderboard` | yes | Sharing users only, ranked by score |
 | `GET /api/compare?userIds=1,2` | yes | Your series plus up to 5 sharing users (default: top 4) |
+
+## Deploying to Vercel (demo mode)
+
+Vercel's serverless filesystem is read-only (except temp storage) and does not persist, so a SQLite file cannot live in the project folder there. When the `VERCEL` environment variable is present the app therefore:
+
+- keeps the database in the temp directory (`tracker.db`), ignoring `DATABASE_URL`,
+- runs the migrations and seeds the demo users automatically on the first request of each cold instance (set `SEED_DEMO_DATA=false` to skip seeding),
+- skips `npm run db:setup` during the Vercel build.
+
+Required: set `SESSION_SECRET` (32+ characters) in the Vercel project settings.
+
+Limits: this is for demos only. Temp storage is wiped on cold starts and is not shared between serverless instances, so accounts you register can disappear and different requests may see different data. The seeded demo accounts (`demo1@example.com` to `demo8@example.com`, password `password123`) exist on every instance. For real persistence, use a hosted SQLite such as Turso (libSQL), or host on a platform with a persistent disk.

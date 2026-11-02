@@ -1,13 +1,10 @@
 import { inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { addDays, todayUtc } from "../src/lib/date";
-import type { Db } from "../src/server/db/client";
-import { users } from "../src/server/db/schema";
-import {
-  createUser,
-  setSharing,
-} from "../src/server/repositories/user.repository";
-import { upsertEntry } from "../src/server/repositories/weight.repository";
+import { addDays, todayUtc } from "../../lib/date";
+import type { Db } from "./client";
+import { users } from "./schema";
+import { createUser, setSharing } from "../repositories/user.repository";
+import { upsertEntry } from "../repositories/weight.repository";
 
 const PASSWORD = "password123";
 const BCRYPT_COST = 10;

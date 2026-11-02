@@ -3,7 +3,7 @@ import {
   demoUsersExist,
   replaceDemoUsers,
   shouldSeedDemo,
-} from "../../scripts/demo-data";
+} from "@/server/db/demo-data";
 import { users } from "@/server/db/schema";
 import { createTestDb } from "./createTestDb";
 

@@ -1,7 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import {
+  drizzle,
+  type BetterSQLite3Database,
+} from "drizzle-orm/better-sqlite3";
+import {
+  bootstrapEphemeralDb,
+  isEphemeralHost,
+  resolveDatabaseFile,
+} from "./bootstrap";
 import * as schema from "./schema";
 
 export type Db = BetterSQLite3Database<typeof schema>;
@@ -23,7 +31,11 @@ export function createDb(filename: string): Db {
 let instance: Db | undefined;
 
 export function getDb(): Db {
-  instance ??= createDb(process.env.DATABASE_URL ?? "./data/tracker.db");
+  if (!instance) {
+    const db = createDb(resolveDatabaseFile(process.env));
+    if (isEphemeralHost(process.env)) bootstrapEphemeralDb(db, process.env);
+    instance = db;
+  }
   return instance;
 }
 
