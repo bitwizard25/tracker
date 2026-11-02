@@ -11,8 +11,6 @@ import type { CompareSeries } from "@/lib/types";
 
 type CompareChartProps = {
   series: CompareSeries[];
-  /** Every user that can be compared; keeps colors stable as the selection changes. */
-  colorUniverse: number[];
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -20,14 +18,13 @@ type CompareChartProps = {
 
 export function CompareChart({
   series,
-  colorUniverse,
   isLoading,
   error,
   onRetry,
 }: CompareChartProps) {
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
-  const lines = useMemo(() => toLineSeries(series, colorUniverse), [series, colorUniverse]);
+  const lines = useMemo(() => toLineSeries(series), [series]);
   const visible = useMemo(() => lines.filter((l) => !hidden.has(l.id)), [lines, hidden]);
 
   if (isLoading) {
