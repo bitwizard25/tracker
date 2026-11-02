@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api-client";
 import { formatKg, formatLongDate, formatSignedKg } from "@/lib/format";
 import { updateWeightSchema } from "@/lib/validation/weight";
@@ -11,13 +11,27 @@ import type { WeightEntry } from "@/lib/types";
 
 const PAGE_SIZE = 10;
 
-type WeightHistoryProps = { entries: WeightEntry[]; onChanged: () => void };
+type WeightHistoryProps = { entries: WeightEntry[]; onChanged: () => void | Promise<void> };
 type Mode = { kind: "edit" | "delete"; id: number } | null;
 
 export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<Mode>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const restoreKey = useRef<string | null>(null);
+
+  // After an edit/delete closes, put focus back on the row trigger, or on the list when the row is gone.
+  useEffect(() => {
+    if (mode !== null || restoreKey.current === null) return;
+    const container = containerRef.current;
+    const key = restoreKey.current;
+    restoreKey.current = null;
+    const target = container?.querySelector<HTMLElement>(`[data-focus-key="${key}"]`) ?? container;
+    target?.focus();
+  }, [mode]);
 
   if (entries.length === 0) {
     return <p className="py-3 text-sm text-muted">Nothing logged yet. Your entries will appear here.</p>;
@@ -26,19 +40,35 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
   const newestFirst = entries.map((entry, index) => ({ entry, previous: entries[index - 1] })).reverse();
   const visible = showAll ? newestFirst : newestFirst.slice(0, PAGE_SIZE);
 
-  async function run(action: () => Promise<unknown>, failure: string) {
+  function close(entry: WeightEntry, kind: "edit" | "delete") {
+    restoreKey.current = `${kind}-${entry.id}`;
+    setMode(null);
+  }
+
+  async function run(
+    entry: WeightEntry,
+    kind: "edit" | "delete",
+    action: () => Promise<unknown>,
+    failure: string,
+  ) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       await action();
-      setMode(null);
-      onChanged();
+      await onChanged();
+      close(entry, kind);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : failure);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={containerRef} tabIndex={-1} className="flex flex-col gap-3 outline-none">
       {error && <Alert className="mt-3">{error}</Alert>}
       <ul className="divide-y divide-line">
         {visible.map(({ entry, previous }) => {
@@ -50,9 +80,15 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
               {editing ? (
                 <EditRow
                   entry={entry}
-                  onCancel={() => setMode(null)}
+                  busy={busy}
+                  onCancel={() => close(entry, "edit")}
                   onSave={(kg) =>
-                    run(() => api.weights.update(entry.id, kg), "Could not update this entry.")
+                    run(
+                      entry,
+                      "edit",
+                      () => api.weights.update(entry.id, kg),
+                      "Could not update this entry.",
+                    )
                   }
                 />
               ) : (
@@ -69,18 +105,35 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
                     </p>
                   </div>
                   {deleting ? (
-                    <div className="flex items-center gap-2" role="group" aria-label="Confirm delete">
+                    <div
+                      ref={focusKeepOnMount}
+                      className="flex items-center gap-2"
+                      role="group"
+                      aria-label="Confirm delete"
+                    >
                       <span className="text-sm">Delete this entry?</span>
                       <Button
                         variant="secondary"
                         className="min-h-9 px-3 text-danger"
+                        loading={busy}
                         onClick={() =>
-                          run(() => api.weights.remove(entry.id), "Could not delete this entry.")
+                          run(
+                            entry,
+                            "delete",
+                            () => api.weights.remove(entry.id),
+                            "Could not delete this entry.",
+                          )
                         }
                       >
                         Delete
                       </Button>
-                      <Button variant="ghost" className="min-h-9 px-3" onClick={() => setMode(null)}>
+                      <Button
+                        variant="ghost"
+                        className="min-h-9 px-3"
+                        data-keep
+                        disabled={busy}
+                        onClick={() => close(entry, "delete")}
+                      >
                         Keep
                       </Button>
                     </div>
@@ -89,6 +142,7 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
                       <Button
                         variant="ghost"
                         className="min-h-9 px-3"
+                        data-focus-key={`edit-${entry.id}`}
                         aria-label={`Edit entry for ${entry.entryDate}`}
                         onClick={() => setMode({ kind: "edit", id: entry.id })}
                       >
@@ -97,6 +151,7 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
                       <Button
                         variant="ghost"
                         className="min-h-9 px-3"
+                        data-focus-key={`delete-${entry.id}`}
                         aria-label={`Delete entry for ${entry.entryDate}`}
                         onClick={() => setMode({ kind: "delete", id: entry.id })}
                       >
@@ -119,9 +174,23 @@ export function WeightHistory({ entries, onChanged }: WeightHistoryProps) {
   );
 }
 
-type EditRowProps = { entry: WeightEntry; onSave: (kg: number) => void; onCancel: () => void };
+/** Stable ref callbacks (so they run only on mount) that move focus into a freshly shown control. */
+function focusKeepOnMount(node: HTMLElement | null) {
+  node?.querySelector<HTMLElement>("button[data-keep]")?.focus();
+}
 
-function EditRow({ entry, onSave, onCancel }: EditRowProps) {
+function focusInputOnMount(node: HTMLElement | null) {
+  node?.querySelector<HTMLElement>("input")?.focus();
+}
+
+type EditRowProps = {
+  entry: WeightEntry;
+  busy: boolean;
+  onSave: (kg: number) => void;
+  onCancel: () => void;
+};
+
+function EditRow({ entry, busy, onSave, onCancel }: EditRowProps) {
   const [value, setValue] = useState(String(entry.weightKg));
   const [error, setError] = useState<string | undefined>();
 
@@ -138,7 +207,12 @@ function EditRow({ entry, onSave, onCancel }: EditRowProps) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-3">
+    <form
+      ref={focusInputOnMount}
+      onSubmit={submit}
+      noValidate
+      className="flex flex-wrap items-end gap-3"
+    >
       <Input
         type="number"
         inputMode="decimal"
@@ -149,8 +223,10 @@ function EditRow({ entry, onSave, onCancel }: EditRowProps) {
         error={error}
         className="w-40"
       />
-      <Button type="submit">Save</Button>
-      <Button variant="ghost" onClick={onCancel}>
+      <Button type="submit" loading={busy}>
+        Save
+      </Button>
+      <Button variant="ghost" disabled={busy} onClick={onCancel}>
         Cancel
       </Button>
     </form>

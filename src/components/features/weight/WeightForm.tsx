@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api-client";
 import { localToday } from "@/lib/domain/dates";
 import { formatKg, formatLongDate } from "@/lib/format";
@@ -17,9 +17,21 @@ const MESSAGES: FieldErrors = {
 
 type WeightFormProps = { onSaved: () => void };
 
+const noopSubscribe = () => () => {};
+
+/** Local today on the client; null during server render and hydration (so no mismatch). */
+function useLocalToday(): string | null {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => localToday(),
+    () => null,
+  );
+}
+
 export function WeightForm({ onSaved }: WeightFormProps) {
-  const [today] = useState(() => localToday());
-  const [entryDate, setEntryDate] = useState(today);
+  const today = useLocalToday();
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const entryDate = pickedDate ?? today ?? "";
   const [weight, setWeight] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -30,6 +42,7 @@ export function WeightForm({ onSaved }: WeightFormProps) {
     event.preventDefault();
     setFormError(null);
     setNotice(null);
+    if (!today) return;
     const parsed = createWeightSchema.safeParse({
       entryDate,
       weightKg: weight.trim() === "" ? Number.NaN : Number(weight),
@@ -69,9 +82,9 @@ export function WeightForm({ onSaved }: WeightFormProps) {
           type="date"
           label="Date"
           value={entryDate}
-          max={today}
-          suppressHydrationWarning
-          onChange={(e) => setEntryDate(e.target.value)}
+          max={today ?? undefined}
+          disabled={!today}
+          onChange={(e) => setPickedDate(e.target.value)}
           error={errors.entryDate}
           hint="Logging a date again updates that day."
         />

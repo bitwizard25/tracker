@@ -30,7 +30,7 @@ export default function LogPage() {
               <Spinner label="Loading entries" />
             </div>
           ) : (
-            <WeightHistory entries={entries} onChanged={() => void reload()} />
+            <WeightHistory entries={entries} onChanged={reload} />
           )}
         </Card>
       </section>
