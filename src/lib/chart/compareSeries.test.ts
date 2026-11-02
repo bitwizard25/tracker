@@ -44,13 +44,16 @@ describe("toLineSeries", () => {
     }
   });
 
-  it("keeps colors stable when a series is toggled off, given the full universe", () => {
-    const universe = [1, 3, 7, 9];
-    const all = toLineSeries([series(1, true), series(3), series(7), series(9)], universe);
-    const fewer = toLineSeries([series(1, true), series(7), series(9)], universe);
-    expect(fewer.find((s) => s.id === "user-9")?.color).toBe(
-      all.find((s) => s.id === "user-9")?.color,
-    );
+  it("keeps colors distinct for the displayed lines however many users share overall", () => {
+    // ids spread far apart, as on a large board where only five are compared at once
+    const others = [4, 15, 26, 37, 48].map((id) => series(id));
+    const colors = toLineSeries([series(1, true), ...others]).map((s) => s.color);
+    expect(new Set(colors).size).toBe(6);
+  });
+
+  it("gives distinct colors even when no board data exists (loading or empty board)", () => {
+    const colors = toLineSeries([series(1, true), series(8), series(2)]).map((s) => s.color);
+    expect(new Set(colors).size).toBe(3);
   });
 
   it("gives distinct colors to up to five other users", () => {

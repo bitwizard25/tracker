@@ -10,24 +10,20 @@ export const OTHER_COLORS = ["#c2571a", "#6b4fbb", "#b0307a", "#1f6fb2", "#8a6d0
 /** Stable key for a series; shared by the chart and the legend toggles. */
 export const seriesId = (userId: number): string => `user-${userId}`;
 
-function colorFor(userId: number, universe: number[]): string {
-  const rank = [...new Set(universe)].sort((a, b) => a - b).indexOf(userId);
-  return OTHER_COLORS[Math.max(rank, 0) % OTHER_COLORS.length];
-}
-
 /**
- * Maps API series to chart series. Colors are assigned by userId rank within `universe`
- * (default: the given series), so order and toggling never reshuffle them.
+ * Maps API series to chart series. Other users' colors are assigned by userId rank within the
+ * given series (at most five others), so displayed lines always have distinct colors and
+ * neither input order nor legend toggling reshuffles them.
  * Only the viewer's own series is labelled "You"; others use their display name.
  */
-export function toLineSeries(
-  series: CompareSeries[],
-  universe: number[] = series.filter((s) => !s.isYou).map((s) => s.userId),
-): LineSeries[] {
+export function toLineSeries(series: CompareSeries[]): LineSeries[] {
+  const otherIds = [...new Set(series.filter((s) => !s.isYou).map((s) => s.userId))].sort(
+    (a, b) => a - b,
+  );
   return series.map((s) => ({
     id: seriesId(s.userId),
     label: s.isYou ? "You" : s.displayName,
-    color: s.isYou ? YOU_COLOR : colorFor(s.userId, universe),
+    color: s.isYou ? YOU_COLOR : OTHER_COLORS[otherIds.indexOf(s.userId) % OTHER_COLORS.length],
     emphasized: s.isYou,
     points: s.points.map((p) => ({ x: parseIsoDate(p.date), y: p.pct })),
   }));

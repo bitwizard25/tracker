@@ -1,38 +1,40 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { consentDismissKey } from "@/lib/domain/consent";
 
-const STORAGE_KEY = "consent-prompt-dismissed";
 const listeners = new Set<() => void>();
-let dismissedInMemory = false;
+const dismissedInMemory = new Set<string>();
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-function readSnapshot(): boolean {
-  if (dismissedInMemory) return true;
-  try {
-    return window.sessionStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
+/** Whether this user dismissed the consent card this browser session (false on the server). */
+export function useConsentDismissed(userId: number): [boolean, () => void] {
+  const key = consentDismissKey(userId);
 
-/** Whether the consent card was dismissed this browser session (false on the server). */
-export function useConsentDismissed(): [boolean, () => void] {
+  const readSnapshot = useCallback((): boolean => {
+    if (dismissedInMemory.has(key)) return true;
+    try {
+      return window.sessionStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  }, [key]);
+
   const dismissed = useSyncExternalStore(subscribe, readSnapshot, () => false);
 
   const dismiss = useCallback(() => {
-    dismissedInMemory = true;
+    dismissedInMemory.add(key);
     try {
-      window.sessionStorage.setItem(STORAGE_KEY, "1");
+      window.sessionStorage.setItem(key, "1");
     } catch {
       // storage unavailable (private mode): the in-memory flag still hides it for this page
     }
     listeners.forEach((listener) => listener());
-  }, []);
+  }, [key]);
 
   return [dismissed, dismiss];
 }

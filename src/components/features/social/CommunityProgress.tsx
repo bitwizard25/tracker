@@ -22,7 +22,8 @@ type CommunityProgressProps = {
 };
 
 export function CommunityProgress({ user, onSharingChanged }: CommunityProgressProps) {
-  const [dismissed, dismiss] = useConsentDismissed();
+  const [dismissed, dismiss] = useConsentDismissed(user.id);
+  const [reopened, setReopened] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [sharingError, setSharingError] = useState<string | null>(null);
@@ -60,12 +61,22 @@ export function CommunityProgress({ user, onSharingChanged }: CommunityProgressP
     }
   }
 
+  function reopenPrompt() {
+    setReopened(true);
+    headingRef.current?.focus();
+  }
+
   function notNow() {
+    setReopened(false);
     dismiss();
     headingRef.current?.focus();
   }
 
-  const showPrompt = shouldShowConsentPrompt({ shareProgress: user.shareProgress, dismissed });
+  const showPrompt = shouldShowConsentPrompt({
+    shareProgress: user.shareProgress,
+    dismissed,
+    reopened,
+  });
 
   return (
     <section aria-labelledby="community-heading" className="flex flex-col gap-4">
@@ -101,8 +112,8 @@ export function CommunityProgress({ user, onSharingChanged }: CommunityProgressP
       {!showPrompt && !user.shareProgress && (
         <Alert tone="info" className="flex flex-wrap items-center justify-between gap-3">
           <span>You are hidden from others. Only members who opted in are shown.</span>
-          <Button variant="secondary" className="min-h-9" loading={busy} onClick={() => changeSharing(true)}>
-            Share my progress
+          <Button variant="secondary" className="min-h-9" disabled={busy} onClick={reopenPrompt}>
+            Review sharing options
           </Button>
         </Alert>
       )}
@@ -140,7 +151,6 @@ export function CommunityProgress({ user, onSharingChanged }: CommunityProgressP
         />
         <CompareChart
           series={compare.series}
-          colorUniverse={candidateIds}
           isLoading={compare.isLoading}
           error={compare.error}
           onRetry={() => void compare.reload()}
