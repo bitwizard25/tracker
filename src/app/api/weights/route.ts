@@ -1,5 +1,10 @@
 import { todayUtc } from "@/lib/date";
-import { createWeightSchema, type CreateWeightInput } from "@/lib/validation/weight";
+import {
+  createWeightSchema,
+  weightRangeQuerySchema,
+  type CreateWeightInput,
+  type WeightRange,
+} from "@/lib/validation/weight";
 import { getDb } from "@/server/db/client";
 import { compose } from "@/server/middleware/compose";
 import { withAuth } from "@/server/middleware/withAuth";
@@ -7,8 +12,12 @@ import { withErrorHandler } from "@/server/middleware/withErrorHandler";
 import { withValidation } from "@/server/middleware/withValidation";
 import { list, logWeight } from "@/server/services/weight.service";
 
-export const GET = compose(withErrorHandler, withAuth())(async (ctx) =>
-  Response.json({ entries: list(getDb(), ctx.user!.id) }),
+export const GET = compose(
+  withErrorHandler,
+  withAuth(),
+  withValidation({ query: weightRangeQuerySchema }),
+)(async (ctx) =>
+  Response.json({ entries: list(getDb(), ctx.user!.id, ctx.query as WeightRange) }),
 );
 
 export const POST = compose(

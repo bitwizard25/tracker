@@ -71,4 +71,16 @@ describe("weight.service", () => {
     expect(list(db, a)).toEqual([]);
     expect(() => remove(db, a, entry.id)).toThrow(NotFoundError);
   });
+
+  it("list filters by an inclusive range and scopes to the user", () => {
+    const { db, a, b } = setup();
+    for (const d of ["2026-03-01", "2026-03-05", "2026-03-09"]) {
+      logWeight(db, a, { entryDate: d, weightKg: 80 }, TODAY);
+    }
+    logWeight(db, b, { entryDate: "2026-03-05", weightKg: 60 }, TODAY);
+    const range = { from: "2026-03-05", to: "2026-03-09" };
+    expect(list(db, a, range).map((e) => e.entryDate)).toEqual(["2026-03-05", "2026-03-09"]);
+    expect(list(db, a, { to: "2026-03-01" })).toHaveLength(1);
+    expect(list(db, a)).toHaveLength(3);
+  });
 });

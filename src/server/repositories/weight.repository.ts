@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import type { Db } from "@/server/db/client";
 import { weightEntries } from "@/server/db/schema";
 
@@ -10,13 +10,25 @@ const entryColumns = {
   weightKg: weightEntries.weightKg,
 };
 
-export function listByUser(db: Db, userId: number): WeightEntry[] {
+export type DateRange = { from?: string; to?: string };
+
+export function listByUserBetween(db: Db, userId: number, range: DateRange = {}): WeightEntry[] {
   return db
     .select(entryColumns)
     .from(weightEntries)
-    .where(eq(weightEntries.userId, userId))
+    .where(
+      and(
+        eq(weightEntries.userId, userId),
+        range.from ? gte(weightEntries.entryDate, range.from) : undefined,
+        range.to ? lte(weightEntries.entryDate, range.to) : undefined,
+      ),
+    )
     .orderBy(asc(weightEntries.entryDate))
     .all();
+}
+
+export function listByUser(db: Db, userId: number): WeightEntry[] {
+  return listByUserBetween(db, userId);
 }
 
 export function upsertEntry(

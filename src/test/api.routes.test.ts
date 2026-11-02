@@ -140,6 +140,40 @@ describe("weight routes", () => {
     expect(list.entries).toEqual([{ id: expect.any(Number), entryDate: today, weightKg: 79.5 }]);
   });
 
+  it("filters the list by from/to and keeps working without params", async () => {
+    const { cookie } = await signUp("r@example.com");
+    const other = await signUp("r2@example.com");
+    for (const d of ["2026-01-01", "2026-01-05", "2026-01-09"]) await log(cookie, d, 80);
+    await log(other.cookie, "2026-01-05", 60);
+    const get = async (qs: string) => {
+      const body = (await (await call(listWeights, `/api/weights${qs}`, { cookie })).json()) as Json;
+      return body.entries.map((e: Json) => e.entryDate);
+    };
+    expect(await get("")).toHaveLength(3);
+    expect(await get("?from=2026-01-05")).toEqual(["2026-01-05", "2026-01-09"]);
+    expect(await get("?to=2026-01-05")).toEqual(["2026-01-01", "2026-01-05"]);
+    expect(await get("?from=2026-01-05&to=2026-01-05")).toEqual(["2026-01-05"]);
+  });
+
+  it.each([
+    "?from=2026-02-30",
+    "?to=nope",
+    "?from=2026-01-02&to=2026-01-01",
+    "?from=2026-01-01&to=2027-01-03",
+  ])("rejects bad range %s with 400", async (qs) => {
+    const { cookie } = await signUp("q@example.com");
+    const res = await call(listWeights, `/api/weights${qs}`, { cookie });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as Json;
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.details).toBeDefined();
+  });
+
+  it("returns 401 for a ranged request when unauthenticated", async () => {
+    const res = await call(listWeights, "/api/weights?from=2026-01-01");
+    expect(res.status).toBe(401);
+  });
+
   it("rejects invalid bodies with 400 and details", async () => {
     const { cookie } = await signUp("v@example.com");
     const res = await log(cookie, "not-a-date", 5);

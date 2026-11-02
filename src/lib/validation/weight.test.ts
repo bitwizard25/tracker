@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWeightSchema, updateWeightSchema } from "./weight";
+import { createWeightSchema, updateWeightSchema, weightRangeQuerySchema } from "./weight";
 
 describe("createWeightSchema", () => {
   it("accepts a valid entry and rounds weight to 2 decimals", () => {
@@ -35,5 +35,26 @@ describe("updateWeightSchema", () => {
   });
   it("rejects out of range", () => {
     expect(updateWeightSchema.safeParse({ weightKg: 5 }).success).toBe(false);
+  });
+});
+
+describe("weightRangeQuerySchema", () => {
+  const ok = (q: unknown) => weightRangeQuerySchema.safeParse(q).success;
+  it("accepts empty, only-from, only-to and both", () => {
+    expect(ok({})).toBe(true);
+    expect(ok({ from: "2026-01-01" })).toBe(true);
+    expect(ok({ to: "2026-01-01" })).toBe(true);
+    expect(ok({ from: "2026-01-01", to: "2026-01-01" })).toBe(true);
+  });
+  it.each(["2026-02-30", "2026-1-1", "20260101", "abc", ""])("rejects invalid date %s", (d) => {
+    expect(ok({ from: d })).toBe(false);
+    expect(ok({ to: d })).toBe(false);
+  });
+  it("rejects from after to", () => {
+    expect(ok({ from: "2026-01-02", to: "2026-01-01" })).toBe(false);
+  });
+  it("allows a 366-day span but not 367", () => {
+    expect(ok({ from: "2026-01-01", to: "2027-01-02" })).toBe(true);
+    expect(ok({ from: "2026-01-01", to: "2027-01-03" })).toBe(false);
   });
 });

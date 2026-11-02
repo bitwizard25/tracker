@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "@/test/createTestDb";
 import { createUser } from "./user.repository";
-import { deleteEntry, listByUser, updateWeight, upsertEntry } from "./weight.repository";
+import { deleteEntry, listByUser, listByUserBetween, updateWeight, upsertEntry } from "./weight.repository";
 
 function setup() {
   const db = createTestDb();
@@ -52,5 +52,47 @@ describe("weight.repository", () => {
     expect(deleteEntry(db, a, entry.id)).toBe(true);
     expect(deleteEntry(db, a, entry.id)).toBe(false);
     expect(listByUser(db, a)).toHaveLength(0);
+  });
+
+  describe("listByUserBetween", () => {
+    const seed = () => {
+      const s = setup();
+      for (const d of ["2026-01-05", "2026-01-01", "2026-01-03", "2026-01-07"]) {
+        upsertEntry(s.db, s.a, d, 80);
+      }
+      upsertEntry(s.db, s.b, "2026-01-03", 60);
+      return s;
+    };
+    const dates = (es: { entryDate: string }[]) => es.map((e) => e.entryDate);
+
+    it("includes both boundaries and orders ascending", () => {
+      const { db, a } = seed();
+      expect(dates(listByUserBetween(db, a, { from: "2026-01-03", to: "2026-01-05" }))).toEqual([
+        "2026-01-03",
+        "2026-01-05",
+      ]);
+    });
+    it("supports only-from and only-to", () => {
+      const { db, a } = seed();
+      expect(dates(listByUserBetween(db, a, { from: "2026-01-05" }))).toEqual([
+        "2026-01-05",
+        "2026-01-07",
+      ]);
+      expect(dates(listByUserBetween(db, a, { to: "2026-01-03" }))).toEqual([
+        "2026-01-01",
+        "2026-01-03",
+      ]);
+    });
+    it("returns everything without a range and nothing for an empty range", () => {
+      const { db, a } = seed();
+      expect(listByUserBetween(db, a)).toHaveLength(4);
+      expect(listByUserBetween(db, a, { from: "2026-02-01", to: "2026-02-07" })).toEqual([]);
+    });
+    it("never returns another user's entries", () => {
+      const { db, b } = seed();
+      const rows = listByUserBetween(db, b, { from: "2026-01-01", to: "2026-01-31" });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].weightKg).toBe(60);
+    });
   });
 });

@@ -4,7 +4,8 @@ import type { Db } from "@/server/db/client";
 import { NotFoundError, ValidationError } from "@/server/errors";
 import {
   deleteEntry,
-  listByUser,
+  listByUserBetween,
+  type DateRange,
   updateWeight,
   upsertEntry,
   type WeightEntry,
@@ -13,8 +14,8 @@ import {
 // Users ahead of UTC (e.g. India, UTC+5:30) may log their local "today", which is up to a day ahead.
 const FUTURE_TOLERANCE_DAYS = 1;
 
-export function list(db: Db, userId: number): WeightEntry[] {
-  return listByUser(db, userId);
+export function list(db: Db, userId: number, range?: DateRange): WeightEntry[] {
+  return listByUserBetween(db, userId, range);
 }
 
 export function logWeight(
