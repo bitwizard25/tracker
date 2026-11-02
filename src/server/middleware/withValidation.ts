@@ -12,10 +12,19 @@ async function readJson(req: Request): Promise<unknown> {
   }
 }
 
+// Rejects CORS-safelisted types (e.g. text/plain forms) that could smuggle JSON cross-site.
+function requireJsonContentType(req: Request): void {
+  const mediaType = req.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+  if (mediaType !== "application/json") {
+    throw new ValidationError("Content-Type must be application/json");
+  }
+}
+
 export function withValidation(schemas: Schemas): Middleware {
   return (next) => async (ctx) => {
     const nextCtx = { ...ctx };
     if (schemas.body) {
+      requireJsonContentType(ctx.req);
       nextCtx.body = schemas.body.parse(await readJson(ctx.req));
     }
     if (schemas.query) {

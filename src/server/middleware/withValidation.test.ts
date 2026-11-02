@@ -20,11 +20,11 @@ const bodyOnly = compose(
 
 const params = { params: Promise.resolve({}) };
 
-function post(url: string, body: string): NextRequest {
+function post(url: string, body: string, contentType: string | null = "application/json"): NextRequest {
   return new NextRequest(url, {
     method: "POST",
     body,
-    headers: { "content-type": "application/json" },
+    headers: contentType ? { "content-type": contentType } : {},
   });
 }
 
@@ -58,6 +58,29 @@ describe("withValidation", () => {
     const res = await bodyOnly(post("http://localhost/x", "{not json"), params);
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rejects text/plain even when the body is valid JSON", async () => {
+    const res = await bodyOnly(post("http://localhost/x", JSON.stringify({ name: "Al", n: 1 }), "text/plain"), params);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.message).toBe("Content-Type must be application/json");
+  });
+
+  it("rejects a missing Content-Type", async () => {
+    const req = new NextRequest("http://localhost/x", {
+      method: "POST",
+      body: new Blob([JSON.stringify({ name: "Al", n: 1 })]),
+    });
+    req.headers.delete("content-type");
+    expect((await bodyOnly(req, params)).status).toBe(400);
+  });
+
+  it("accepts application/json with parameters in any case", async () => {
+    const res = await bodyOnly(
+      post("http://localhost/x", JSON.stringify({ name: "Al", n: 1 }), "Application/JSON; charset=utf-8"),
+      params,
+    );
+    expect(res.status).toBe(200);
   });
 
   it("rejects an empty body when a body schema is given", async () => {
