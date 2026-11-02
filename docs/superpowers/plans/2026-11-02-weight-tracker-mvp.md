@@ -53,7 +53,7 @@ function leaderboardScore(progress: number, consistency: number): number // 0.7*
 type PublicUser = { id: number; email: string; displayName: string; goalType: 'lose'|'gain'; goalWeightKg: number | null; shareProgress: boolean }
 
 // Middleware (src/server/middleware/*)
-type RouteContext<T = unknown> = { req: NextRequest; params: Record<string,string>; user?: PublicUser; body?: T; query?: Record<string,string> }
+type RouteContext<T = unknown> = { req: NextRequest; params: Record<string,string>; user?: PublicUser; body?: T; query?: Record<string,unknown> }
 type Handler = (ctx: RouteContext) => Promise<Response>
 type Middleware = (next: Handler) => Handler
 function compose(...mws: Middleware[]): (handler: Handler) => (req: NextRequest, routeCtx: { params: Promise<Record<string,string>> }) => Promise<Response>
