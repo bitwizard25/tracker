@@ -92,9 +92,11 @@ function compose(...mws: Middleware[]): (handler: Handler) => (req: NextRequest,
 - Tests (`src/server/db/schema.test.ts`): inserting two entries for same user+date throws; deleting a user cascades its entries; `share_progress` defaults to 0; `goal_type` check rejects `'maintain'`.
 - Done when `npm test`, `npm run typecheck`, `npm run lint` pass.
 
-## Task 2: Domain functions (pure, unit tested)
+## Task 2: Domain functions and shared request schemas (pure, unit tested)
 
-**Files:** `src/lib/domain/progress.ts`, `src/lib/domain/scoring.ts`, `*.test.ts` for each.
+**Files:** `src/lib/domain/progress.ts`, `src/lib/domain/scoring.ts`, `src/lib/validation/{auth.ts,weight.ts,sharing.ts,compare.ts}`, `*.test.ts` for each. Tests may use relative imports (no vitest config exists on this branch yet); do NOT edit `package.json` or create a vitest config (Task 1 owns them).
+
+**Shared request schemas (zod 4, used by both the server and the UI forms):** per the API contract. `entryDate` matches `^\d{4}-\d{2}-\d{2}$` and is a real calendar date; `weightKg` is a number 20-500 rounded to 2 decimals; register password min 8; `displayName` 2-30 trimmed; `goalType` is `'lose'|'gain'`; compare `userIds` parses a comma-separated list of positive ints, max 5. Export each schema and its inferred input type (e.g. `registerSchema`, `RegisterInput`). Tests cover good and bad input for each.
 
 Implement exactly the signatures and formulas in "Shared interfaces". Notes: `toPercentSeries([])` returns `[]`; unsorted input is sorted by date; first point is always `pct: 0`. `consistencyScore` takes `today` as a parameter (no `Date.now()` inside) and ignores dates outside the window or in the future. The window is 30 calendar days ending on `today` inclusive, i.e. `today-29 … today`. Tests must cover: empty input, single entry, lose vs gain direction, negative directional change clamped to 0 in `progressScore`, cap at 100, duplicate dates counted once, window boundary (`today-29` included, `today-30` excluded, `today+1` excluded), rounding.
 
@@ -120,16 +122,15 @@ Implement exactly the signatures and formulas in "Shared interfaces". Notes: `to
 - `compare.service.getComparison(db, viewerId, requestedIds, today)`: viewer's own series always included first with `isYou: true` (built from the viewer's own entries even when not sharing; omit if viewer has no entries); other ids kept only if the user is in the sharing set; if `requestedIds` is empty, default to the top 4 by leaderboard rank excluding the viewer; cap total others at 5. Series via `toPercentSeries`.
 - Tests (critical): a non-sharing user NEVER appears in leaderboard or compare even when explicitly requested by id; toggling sharing off removes them immediately; no weight values leak (assert response objects have no `weightKg` key); ranking math and tie-breaks; viewer-not-sharing still gets own series.
 
-## Task 5: Middleware chain and request schemas
+## Task 5: Middleware chain
 
-**Files:** `src/server/middleware/{compose.ts,withErrorHandler.ts,withAuth.ts,withValidation.ts,withRateLimit.ts}`, `src/lib/validation/{auth.ts,weight.ts,sharing.ts,compare.ts}`, tests.
+**Files:** `src/server/middleware/{compose.ts,withErrorHandler.ts,withAuth.ts,withValidation.ts,withRateLimit.ts}`, tests. (The zod request schemas already exist from Task 2 in `src/lib/validation/`.)
 
 - Implement the `RouteContext`/`Handler`/`Middleware`/`compose` types and behavior from "Shared interfaces". `compose(a, b, c)(handler)` runs `a` outermost. The returned route function awaits `routeCtx.params`.
 - `withErrorHandler`: catches `AppError` → JSON error body with its status; `ZodError` → 400 `VALIDATION_ERROR` with `details` = flattened issues; anything else → 500 `INTERNAL_ERROR` with a generic message (log the real error with `console.error`, never leak it).
 - `withAuth`: reads the session cookie from `req.cookies`, verifies it, loads the user via `findById(getDb(), id)`, injects `ctx.user`; missing/invalid/unknown user → `UnauthorizedError`. Uses `getDb()` so a `deps` override parameter `withAuth({ db })` is accepted for tests.
 - `withValidation({ body?, query? })`: parses JSON body (invalid JSON → 400) and `req.nextUrl.searchParams` with zod, sets `ctx.body` / `ctx.query`.
 - `withRateLimit({ limit, windowMs, key? })`: in-memory fixed-window limiter keyed by client IP (`x-forwarded-for` first value, else `'local'`); exceeding → `RateLimitError` whose `details` is `{ retryAfterSeconds: number }`, and `withErrorHandler` sets a `Retry-After` header when the error code is `RATE_LIMITED`; exposes a `resetRateLimits()` for tests.
-- Zod schemas per the API contract (shared by client and server). `entryDate` regex `^\d{4}-\d{2}-\d{2}$` and a real calendar date; `weightKg` number 20-500 with max 2 decimals tolerated (round to 2dp).
 - Tests: order of composition, each error mapping incl. 500 not leaking message, auth success/failure paths using `createTestDb`, validation of good/bad body and query, rate limit blocks the (limit+1)th call and resets.
 
 ## Task 6: API route handlers and proxy
@@ -138,7 +139,7 @@ Implement exactly the signatures and formulas in "Shared interfaces". Notes: `to
 
 - Each route file is thin: `export const POST = compose(withErrorHandler, withAuth(), withValidation({body: schema}))(handler)` where the handler calls the service and returns `Response.json`. Follow the API contract table exactly (status codes, shapes). Register/login set the session cookie via `NextResponse.cookies.set(SESSION_COOKIE, token, sessionCookieOptions)`; logout clears it. Compare parses `userIds` as comma-separated ints.
 - `today` for scoring and date validation comes from `todayUtc()` in `src/lib/date.ts` (created in Task 3), injected into services by the handler.
-- `src/proxy.ts`: optimistic redirect only. If the request path starts with `/dashboard`, `/log`, `/leaderboard`, `/compare`, `/settings` and there is no session cookie → redirect to `/login`; if a session cookie exists and path is `/login` or `/register` → redirect to `/dashboard`. Export `config.matcher` for those paths only (never `/api`, `_next`, static). Real auth is `withAuth`.
+- `src/proxy.ts`: optimistic redirect only. If the request path starts with `/dashboard`, `/log`, `/settings` and there is no session cookie → redirect to `/login`; if a session cookie exists and path is `/login` or `/register` → redirect to `/dashboard`. Export `config.matcher` for those paths only (never `/api`, `_next`, static). Real auth is `withAuth`.
 - Route tests call the exported handlers directly with `NextRequest` objects against a test DB (set `DATABASE_URL=:memory:` is NOT enough across modules, so make `getDb()` overridable via an exported `setDbForTests(db)` in `client.ts`). Cover: register→me via cookie, duplicate email 409, unauthenticated `/api/weights` 401 with the standard error shape, upsert twice same date gives 201 then 200 with one row, invalid body 400 with details, cross-user PATCH/DELETE 404, sharing toggle then leaderboard visibility, compare never returns a non-sharing user, no `weightKg` in leaderboard/compare responses for other users.
 - Done when the full test suite, typecheck, lint pass and `npm run build` succeeds.
 
@@ -150,8 +151,8 @@ Implement exactly the signatures and formulas in "Shared interfaces". Notes: `to
 - UI primitives are small, accessible (labels, `aria-invalid`, focus rings), Tailwind v4, support `className` merge. Clean, calm visual design appropriate for a health app; mobile-first.
 - Auth forms: client components, validate with the shared zod schemas, show field errors and API errors, redirect to `/dashboard` on success (`router.replace` + `router.refresh`).
 - `useCurrentUser` returns `{ user: PublicUser | null, isLoading: boolean, refresh: () => Promise<void> }` (fetches `/api/auth/me`; `refresh` is used by Task 9 after the sharing choice changes).
-- **Exception to the "UI never imports `src/server/**`" rule:** server components under `src/app` (only `(app)/layout.tsx` and `src/app/page.tsx`) may import `src/server/session.ts` and the `auth.service`/`getDb` solely to gate access. Client components and hooks may never import `src/server/**`.
-- `(app)/layout.tsx` is a server component that verifies the session server-side (using the services directly with `getDb()`, redirect to `/login` if invalid) and renders the header + nav (Dashboard, Log, Leaderboard, Compare, Settings, Logout).
+- The UI track NEVER imports from `src/server/**` (this branch is built in parallel with the backend). Gating is cookie-presence only: server components may call `cookies()` to check that `tracker_session` exists; real validation happens at the API, and `useCurrentUser` / `apiFetch` send the user to `/login` on a 401.
+- The app has exactly three screens plus settings: **Login** (with a link to Register), **Dashboard** (individual + global progress), **Log weight** (data entry). `(app)/layout.tsx` is a server component that redirects to `/login` when the `tracker_session` cookie is absent, and renders the header + nav (Dashboard, Log weight, Settings, Logout).
 - Settings page shows the sharing toggle with plain-language explanation: "Share my name and progress on the leaderboard and comparison graph. Others see your display name and % change only, never your weights." Toggle calls `PUT /api/sharing`.
 - Tests: `api-client` unit test (error mapping, success parse) with a mocked `fetch`. Component tests optional beyond that; `npm run build` must pass.
 
@@ -165,11 +166,11 @@ Implement exactly the signatures and formulas in "Shared interfaces". Notes: `to
 - `/dashboard`: `StatsSummary` (current, start, change kg and %, days logged in the last 30, current streak = consecutive logged days ending today, or ending yesterday if today is not logged yet) and `WeightChart`. Empty state links to `/log`. Stats calculations live in `src/lib/domain/stats.ts` with tests.
 - Done when tests, typecheck, lint, build pass.
 
-## Task 9: Leaderboard, comparison and consent prompt
+## Task 9: Global progress on the dashboard: consent, leaderboard, comparison
 
-**Files:** `src/components/features/social/{ConsentPrompt,LeaderboardTable,CompareControls}.tsx`, `src/components/charts/CompareChart.tsx`, `src/hooks/{useLeaderboard,useCompare}.ts`, `src/app/(app)/{leaderboard,compare}/page.tsx`.
+**Files:** `src/components/features/social/{ConsentPrompt,LeaderboardTable,CompareControls}.tsx`, `src/components/charts/CompareChart.tsx`, `src/hooks/{useLeaderboard,useCompare}.ts`, and a `CommunityProgress` section component (`src/components/features/social/CommunityProgress.tsx`) rendered by the existing `src/app/(app)/dashboard/page.tsx` below the individual stats. There are no separate `/leaderboard` or `/compare` pages.
 
-- **Consent prompt (user requirement):** if the viewer's `shareProgress` is false, the leaderboard and compare pages show a `ConsentPrompt` card before anything about them is shown: explains exactly what becomes visible (display name + % change + rank, never weights), with buttons "Share my progress" (calls `PUT /api/sharing {share:true}`, then refetches) and "Not now" (dismisses for the session via `sessionStorage`; the viewer stays hidden from others). Non-sharing viewers may still view the board of those who opted in. A "Stop sharing" control is available on these pages and in Settings.
+- **Consent prompt (user requirement):** if the viewer's `shareProgress` is false, the dashboard's community section shows a `ConsentPrompt` card before anything about them is shown: explains exactly what becomes visible (display name + % change + rank, never weights), with buttons "Share my progress" (calls `PUT /api/sharing {share:true}`, then refetches) and "Not now" (dismisses for the session via `sessionStorage`; the viewer stays hidden from others). Non-sharing viewers may still view the board of those who opted in. A "Stop sharing" control is available in that section and in Settings.
 - `LeaderboardTable`: rank, display name, progress %, consistency %, score, highlighted "You" row; empty state when nobody has opted in. Explain the score ("70% weight change toward your goal, 30% logging consistency over the last 30 days") in a short caption.
 - `CompareChart` wraps the shared `LineChart` with y = % change from each user's first entry, the viewer's line emphasized, a legend with toggleable series (max 5 others), and `CompareControls` to pick which sharing users to include (defaults to top 4).
 - Tests: a pure helper `src/lib/chart/compareSeries.ts` that maps API series to `LineChart` series (assign stable colors, emphasize `isYou`) with unit tests; consent prompt visibility logic as a small pure function with tests.
