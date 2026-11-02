@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import {
   check,
   index,
@@ -45,3 +46,42 @@ export const weightEntries = sqliteTable(
     index("weight_entries_user_date_idx").on(t.userId, t.entryDate),
   ],
 );
+
+export const streaks = sqliteTable(
+  "streaks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    lengthDays: integer("length_days").notNull(),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  },
+  (t) => [
+    index("streaks_user_id_idx").on(t.userId),
+    index("streaks_user_start_idx").on(t.userId, t.startDate),
+  ],
+);
+
+// --------------- Relations ---------------
+
+export const usersRelations = relations(users, ({ many }) => ({
+  weightEntries: many(weightEntries),
+  streaks: many(streaks),
+}));
+
+export const weightEntriesRelations = relations(weightEntries, ({ one }) => ({
+  user: one(users, {
+    fields: [weightEntries.userId],
+    references: [users.id],
+  }),
+}));
+
+export const streaksRelations = relations(streaks, ({ one }) => ({
+  user: one(users, {
+    fields: [streaks.userId],
+    references: [users.id],
+  }),
+}));
