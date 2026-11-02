@@ -15,8 +15,9 @@ describe("registerSchema", () => {
     expect(r.displayName).toBe("Raj");
   });
   it("allows omitting goalWeightKg", () => {
-    const { goalWeightKg: _omit, ...rest } = valid;
-    expect(registerSchema.safeParse(rest).success).toBe(true);
+    const withoutGoal: Record<string, unknown> = { ...valid };
+    delete withoutGoal.goalWeightKg;
+    expect(registerSchema.safeParse(withoutGoal).success).toBe(true);
   });
   it.each([
     ["short password", { password: "short12" }],
