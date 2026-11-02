@@ -1,6 +1,11 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { line, curveMonotoneX } from "d3-shape";
 import { utcFormat } from "d3-time-format";
 import { buildScales, nearestIndex, type ChartPoint } from "@/lib/chart/scales";
@@ -28,7 +33,12 @@ const MAX_MARKERS = 45;
 const formatTick = utcFormat("%b %-d");
 const formatFull = utcFormat("%a, %b %-d, %Y");
 
-export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartProps) {
+export function LineChart({
+  series,
+  yLabel,
+  formatY,
+  height = 280,
+}: LineChartProps) {
   const { ref, width } = useChartDimensions<HTMLDivElement>();
   const [activeTime, setActiveTime] = useState<number | null>(null);
 
@@ -45,12 +55,17 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
     () =>
       [
         ...new Set(
-          series.filter((s) => !s.dashed).flatMap((s) => s.points.map((p) => p.x.getTime())),
+          series
+            .filter((s) => !s.dashed)
+            .flatMap((s) => s.points.map((p) => p.x.getTime())),
         ),
       ].sort((a, b) => a - b),
     [series],
   );
-  const timePoints = useMemo(() => times.map((t) => ({ x: new Date(t), y: 0 })), [times]);
+  const timePoints = useMemo(
+    () => times.map((t) => ({ x: new Date(t), y: 0 })),
+    [times],
+  );
   const path = useMemo(
     () =>
       line<ChartPoint>()
@@ -75,8 +90,10 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
       return;
     }
     let next: number;
-    if (event.key === "ArrowRight") next = Math.min(current + 1, times.length - 1);
-    else if (event.key === "ArrowLeft") next = current <= 0 ? times.length - 1 : current - 1;
+    if (event.key === "ArrowRight")
+      next = Math.min(current + 1, times.length - 1);
+    else if (event.key === "ArrowLeft")
+      next = current <= 0 ? times.length - 1 : current - 1;
     else return;
     event.preventDefault();
     setActiveTime(times[next]);
@@ -101,7 +118,11 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
       style={{ height }}
       role="group"
       tabIndex={hasData ? 0 : undefined}
-      aria-label={hasData ? `${yLabel} chart. Use left and right arrow keys to inspect values.` : undefined}
+      aria-label={
+        hasData
+          ? `${yLabel} chart. Use left and right arrow keys to inspect values.`
+          : undefined
+      }
       onKeyDown={onKeyDown}
       onBlur={() => setActiveTime(null)}
     >
@@ -121,7 +142,12 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
                   stroke="var(--line)"
                   strokeDasharray={tick === yTicks[0] ? undefined : "2 4"}
                 />
-                <text x={-10} dy="0.32em" textAnchor="end" className="fill-muted text-[11px]">
+                <text
+                  x={-10}
+                  dy="0.32em"
+                  textAnchor="end"
+                  className="fill-muted text-[11px]"
+                >
                   {formatY(tick)}
                 </text>
               </g>
@@ -233,27 +259,30 @@ export function LineChart({ series, yLabel, formatY, height = 280 }: LineChartPr
         />
       )}
 
-      <table className="sr-only">
-        <caption>{summary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Series</th>
-            <th scope="col">Date</th>
-            <th scope="col">{yLabel}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {series.flatMap((s) =>
-            s.points.map((p) => (
-              <tr key={`${s.id}-${p.x.getTime()}`}>
-                <th scope="row">{s.label}</th>
-                <td>{formatFull(p.x)}</td>
-                <td>{formatY(p.y)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+      {/* sr-only must wrap the table in a div: display:table ignores the 1px size and overflow clip, which stretched the page. */}
+      <div className="sr-only">
+        <table>
+          <caption>{summary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Series</th>
+              <th scope="col">Date</th>
+              <th scope="col">{yLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {series.flatMap((s) =>
+              s.points.map((p) => (
+                <tr key={`${s.id}-${p.x.getTime()}`}>
+                  <th scope="row">{s.label}</th>
+                  <td>{formatFull(p.x)}</td>
+                  <td>{formatY(p.y)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -266,7 +295,13 @@ type TooltipProps = {
   rows: { id: string; label: string; color: string; value: string }[];
 };
 
-function Tooltip({ left, containerWidth, title, subtitle, rows }: TooltipProps) {
+function Tooltip({
+  left,
+  containerWidth,
+  title,
+  subtitle,
+  rows,
+}: TooltipProps) {
   const flip = left > containerWidth / 2;
   return (
     <div

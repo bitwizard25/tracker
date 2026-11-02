@@ -65,15 +65,16 @@ export function WeeklyBarChart({
   );
   const y = useMemo(
     () =>
-      scaleLinear()
-        .domain([domainLo, domainHi])
-        .range([plotHeight, 0])
-        .nice(4),
+      scaleLinear().domain([domainLo, domainHi]).range([plotHeight, 0]).nice(4),
     [domainLo, domainHi, plotHeight],
   );
   const ticks = domain ? y.ticks(4) : [];
   const [d0, d1] = y.domain();
-  const showGoal = domain !== null && goalWeightKg != null && goalWeightKg >= d0 && goalWeightKg <= d1;
+  const showGoal =
+    domain !== null &&
+    goalWeightKg != null &&
+    goalWeightKg >= d0 &&
+    goalWeightKg <= d1;
   const step = x.step();
   const barWidth = Math.min(x.bandwidth(), MAX_BAR);
 
@@ -88,22 +89,45 @@ export function WeeklyBarChart({
     >
       {width > 0 && (
         <>
-          <svg width={width} height={height} aria-hidden="true" className="overflow-visible">
+          <svg
+            width={width}
+            height={height}
+            aria-hidden="true"
+            className="overflow-visible"
+          >
             <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
               {domain && (
-                <text x={-MARGIN.left + 2} y={-12} className="fill-muted text-[11px]">
+                <text
+                  x={-MARGIN.left + 2}
+                  y={-12}
+                  className="fill-muted text-[11px]"
+                >
                   kg
                 </text>
               )}
               {ticks.map((tick) => (
                 <g key={tick} transform={`translate(0,${y(tick)})`}>
-                  <line x2={plotWidth} stroke="var(--line)" strokeDasharray="2 4" />
-                  <text x={-8} dy="0.32em" textAnchor="end" className="fill-muted text-[11px]">
+                  <line
+                    x2={plotWidth}
+                    stroke="var(--line)"
+                    strokeDasharray="2 4"
+                  />
+                  <text
+                    x={-8}
+                    dy="0.32em"
+                    textAnchor="end"
+                    className="fill-muted text-[11px]"
+                  >
                     {Number(tick.toFixed(1))}
                   </text>
                 </g>
               ))}
-              <line y1={plotHeight} y2={plotHeight} x2={plotWidth} stroke="var(--line)" />
+              <line
+                y1={plotHeight}
+                y2={plotHeight}
+                x2={plotWidth}
+                stroke="var(--line)"
+              />
 
               {days.map((day) => {
                 const cx = (x(day.date) ?? 0) + x.bandwidth() / 2;
@@ -128,9 +152,14 @@ export function WeeklyBarChart({
                           x={cx - barWidth / 2}
                           y={y(day.entry.weightKg)}
                           width={barWidth}
-                          height={Math.max(plotHeight - y(day.entry.weightKg), 0)}
+                          height={Math.max(
+                            plotHeight - y(day.entry.weightKg),
+                            0,
+                          )}
                           rx={5}
-                          fill={isToday ? "var(--brand-strong)" : "var(--brand)"}
+                          fill={
+                            isToday ? "var(--brand-strong)" : "var(--brand)"
+                          }
                           stroke={editing ? "var(--foreground)" : "none"}
                           strokeWidth={2}
                           className="motion-safe:transition-all motion-safe:duration-300"
@@ -162,7 +191,9 @@ export function WeeklyBarChart({
                           height={56}
                           rx={5}
                           fill={editing ? "var(--brand-soft)" : "none"}
-                          stroke={editing ? "var(--foreground)" : "var(--muted)"}
+                          stroke={
+                            editing ? "var(--foreground)" : "var(--muted)"
+                          }
                           strokeWidth={editing ? 2 : 1.5}
                           strokeDasharray="4 3"
                         />
@@ -234,7 +265,8 @@ export function WeeklyBarChart({
 
           {days.map((day) => {
             if (day.isFuture) return null;
-            const left = MARGIN.left + (x(day.date) ?? 0) - (step - x.bandwidth()) / 2;
+            const left =
+              MARGIN.left + (x(day.date) ?? 0) - (step - x.bandwidth()) / 2;
             const isToday = day.date === today;
             const name = `${dayLabel(day.date)}${isToday ? ", today" : ""}`;
             const text = day.entry
@@ -258,25 +290,32 @@ export function WeeklyBarChart({
         </>
       )}
 
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            <th scope="col">Weight</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((day) => (
-            <tr key={day.date}>
-              <th scope="row">{dayLabel(day.date)}</th>
-              <td>
-                {day.entry ? formatKg(day.entry.weightKg) : day.isFuture ? "Not yet" : "Not logged"}
-              </td>
+      {/* sr-only must wrap the table in a div: display:table ignores the 1px size and overflow clip, which stretched the page. */}
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">Weight</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {days.map((day) => (
+              <tr key={day.date}>
+                <th scope="row">{dayLabel(day.date)}</th>
+                <td>
+                  {day.entry
+                    ? formatKg(day.entry.weightKg)
+                    : day.isFuture
+                      ? "Not yet"
+                      : "Not logged"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

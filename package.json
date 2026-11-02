@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
-    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts"
+    "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
+    "db:setup": "tsx --env-file-if-exists=.env.local scripts/setup-db.ts",
+    "predev": "npm run db:setup",
+    "prebuild": "npm run db:setup",
+    "prestart": "npm run db:setup"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
