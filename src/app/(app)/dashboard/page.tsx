@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { WeightChart } from "@/components/charts/WeightChart";
+import { CommunityProgress } from "@/components/features/social/CommunityProgress";
 import { StatsSummary } from "@/components/features/weight/StatsSummary";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useWeights } from "@/hooks/useWeights";
 import { localToday } from "@/lib/domain/dates";
 
 export default function DashboardPage() {
-  const { user } = useCurrentUser();
+  const { user, refresh } = useCurrentUser();
   const { entries, isLoading, error } = useWeights();
   const [today] = useState(() => localToday());
 
@@ -46,7 +47,7 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* Task 9 renders its CommunityProgress section here, below the individual section. */}
+      {user && <CommunityProgress user={user} onSharingChanged={refresh} />}
     </div>
   );
 }
