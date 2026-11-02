@@ -6,6 +6,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { WeightChart } from "@/components/charts/WeightChart";
 import { CommunityProgress } from "@/components/features/social/CommunityProgress";
+import { WeeklyView } from "@/components/features/weight/WeeklyView";
 import { StatsSummary } from "@/components/features/weight/StatsSummary";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useWeights } from "@/hooks/useWeights";
@@ -13,7 +14,7 @@ import { localToday } from "@/lib/domain/dates";
 
 export default function DashboardPage() {
   const { user, refresh } = useCurrentUser();
-  const { entries, isLoading, error } = useWeights();
+  const { entries, isLoading, error, reload } = useWeights();
   const [today] = useState(() => localToday());
 
   return (
@@ -45,6 +46,15 @@ export default function DashboardPage() {
             </Card>
           </>
         )}
+      </section>
+
+      <section aria-labelledby="weekly-heading">
+        <Card>
+          <h2 id="weekly-heading" className="mb-3 font-display text-lg font-semibold">
+            Weekly view
+          </h2>
+          <WeeklyView goalWeightKg={user?.goalWeightKg} onChanged={reload} />
+        </Card>
       </section>
 
       {user && <CommunityProgress user={user} onSharingChanged={refresh} />}

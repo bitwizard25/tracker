@@ -79,7 +79,13 @@ export const api = {
     me: () => apiFetch<{ user: PublicUser }>("/api/auth/me"),
   },
   weights: {
-    list: () => apiFetch<{ entries: WeightEntry[] }>("/api/weights"),
+    list: (range?: { from?: string; to?: string }) => {
+      const params = new URLSearchParams();
+      if (range?.from) params.set("from", range.from);
+      if (range?.to) params.set("to", range.to);
+      const query = params.toString();
+      return apiFetch<{ entries: WeightEntry[] }>(query ? `/api/weights?${query}` : "/api/weights");
+    },
     save: async (input: SaveWeightInput): Promise<SaveWeightResult> => {
       const { status, data } = await request<{ entry: WeightEntry }>(
         "/api/weights",
