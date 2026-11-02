@@ -26,3 +26,7 @@ export function getDb(): Db {
   instance ??= createDb(process.env.DATABASE_URL ?? "./data/tracker.db");
   return instance;
 }
+
+export function setDbForTests(db: Db | undefined): void {
+  instance = db;
+}
