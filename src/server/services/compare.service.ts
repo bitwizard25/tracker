@@ -15,6 +15,9 @@ export type ComparisonSeries = {
 const MAX_OTHERS = 5;
 const DEFAULT_OTHERS = 4;
 
+// Other users' points are 1dp: 2dp over many entries lets a caller brute-force raw weights.
+const round1 = (n: number): number => Math.round(n * 10) / 10 + 0; // + 0 normalises -0
+
 function ownSeries(db: Db, viewerId: number): ComparisonSeries[] {
   const viewer = findById(db, viewerId);
   const entries = listByUser(db, viewerId);
@@ -50,7 +53,7 @@ export function getComparison(
       userId: user.userId,
       displayName: user.displayName,
       isYou: false,
-      points: toPercentSeries(user.entries),
+      points: toPercentSeries(user.entries).map(({ date, pct }) => ({ date, pct: round1(pct) })),
     }));
 
   return [...ownSeries(db, viewerId), ...others];

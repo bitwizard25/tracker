@@ -26,7 +26,7 @@ describe("leaderboard.service.getLeaderboard", () => {
       share: true,
       entries: [["2026-03-30", 95], ["2026-03-01", 100]],
     });
-    const consistency = (2 / 30) * 100;
+    const consistency = 6.7;
     expect(getLeaderboard(db, a, TODAY)).toEqual([
       {
         rank: 1,
@@ -34,7 +34,7 @@ describe("leaderboard.service.getLeaderboard", () => {
         displayName: "Ann",
         progressPct: 50,
         consistencyPct: consistency,
-        score: Math.round((0.7 * 50 + 0.3 * consistency) * 10) / 10,
+        score: 37,
         isYou: true,
       },
     ]);
@@ -95,10 +95,28 @@ describe("leaderboard.service.getLeaderboard", () => {
     expect(getLeaderboard(db, viewer, TODAY)).toHaveLength(1);
   });
 
-  it("never exposes weights, emails or hashes", () => {
+  it("returns other users' numbers at most 1dp so raw weights cannot be recovered", () => {
+    const db = createTestDb();
+    const viewer = seedUser(db, { name: "V", share: true, entries: [["2026-03-30", 80]] });
+    seedUser(db, { name: "O", share: true, entries: [["2026-03-01", 91.7], ["2026-03-30", 89.3]] });
+    const board = getLeaderboard(db, viewer, TODAY);
+    const other = board.find((e) => !e.isYou);
+    expect(board).toHaveLength(2);
+    expect(other?.progressPct).toBe(26.2);
+    for (const e of board) {
+      for (const n of [e.progressPct, e.consistencyPct, e.score]) {
+        expect(Math.round(n * 10) / 10).toBe(n);
+      }
+    }
+  });
+
+  it("exposes exactly the contract keys", () => {
     const db = createTestDb();
     const v = seedUser(db, { name: "V", share: true, entries: [["2026-03-01", 80], ["2026-03-30", 79]] });
-    const keys = collectKeys(getLeaderboard(db, v, TODAY));
-    for (const forbidden of ["weightKg", "email", "passwordHash"]) expect(keys.has(forbidden)).toBe(false);
+    const board = getLeaderboard(db, v, TODAY);
+    expect(board).toHaveLength(1);
+    expect([...collectKeys(board)].sort()).toEqual(
+      ["consistencyPct", "displayName", "isYou", "progressPct", "rank", "score", "userId"].sort(),
+    );
   });
 });
