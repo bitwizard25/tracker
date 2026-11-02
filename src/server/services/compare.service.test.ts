@@ -92,11 +92,28 @@ describe("compare.service.getComparison", () => {
     expect(result.map((s) => s.userId)).toEqual([viewer, ...ids.slice(0, 5)]);
   });
 
-  it("never exposes weights, emails or hashes", () => {
+  it("rounds other users' points to 1dp but keeps the viewer's own at 2dp", () => {
+    const db = createTestDb();
+    const entries: [string, number][] = [["2026-03-01", 91.7], ["2026-03-10", 90.1], ["2026-03-30", 89.3]];
+    const viewer = seedUser(db, { name: "Me", share: true, entries });
+    const other = seedUser(db, { name: "Other", share: true, entries });
+    const result = getComparison(db, viewer, [other], TODAY);
+    expect(result).toHaveLength(2);
+    const [own, theirs] = result;
+    expect(own.points.map((p) => p.pct)).toEqual([0, -1.74, -2.62]);
+    expect(theirs.points.map((p) => p.pct)).toEqual([0, -1.7, -2.6]);
+    expect(theirs.points.every((p) => Math.round(p.pct * 10) / 10 === p.pct)).toBe(true);
+    expect(Object.is(theirs.points[0].pct, 0)).toBe(true);
+  });
+
+  it("exposes exactly the contract keys", () => {
     const db = createTestDb();
     const viewer = sharer(db, "Viewer");
     const other = sharer(db, "Other");
-    const keys = collectKeys(getComparison(db, viewer, [other], TODAY));
-    for (const forbidden of ["weightKg", "email", "passwordHash"]) expect(keys.has(forbidden)).toBe(false);
+    const result = getComparison(db, viewer, [other], TODAY);
+    expect(result).toHaveLength(2);
+    expect([...collectKeys(result)].sort()).toEqual(
+      ["date", "displayName", "isYou", "pct", "points", "userId"].sort(),
+    );
   });
 });
